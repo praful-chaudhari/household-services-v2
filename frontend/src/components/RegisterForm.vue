@@ -1,35 +1,41 @@
 <script setup>
 import { computed, reactive, ref, watch, onMounted } from "vue";
 import { useToast } from "vue-toastification";
+import { useRouter } from "vue-router";
 import axios from "@/utils/axios.js";
+import { fetchServices } from "@/shared/fetchServices";
+
+const toast = useToast();
+const router = useRouter();
+
+const services = ref([]);
+
+const loadServices = async () => {
+    try {
+        services.value = await fetchServices();
+    } catch (error) {
+        console.error(error);
+    }
+};
+
+onMounted(async () => {
+    loadServices();
+});
 
 const userTypes = [
     { label: "Customer", value: "customer" },
     { label: "Service Provider", value: "service_provider" },
 ];
 
-const toast = useToast();
-
 const userData = reactive({
     userType: "customer",
     name: "",
-    username: "",
     email: "",
     password: "",
-    serviceType: "",
+    serviceId: "",
     serviceDescription: "",
     experience: "",
-});
-
-const services = ref([]);
-
-onMounted(async () => {
-    try {
-        const response = await axios.get("/services");
-        services.value = response.data;
-    } catch (error) {
-        toast.error("Error fetching services");
-    }
+    pincodes: "",
 });
 
 const changeUserType = (userType) => {
@@ -37,21 +43,20 @@ const changeUserType = (userType) => {
 };
 
 const isNameValid = ref(true);
-const isUsernameValid = ref(true);
 const isEmailValid = ref(true);
 const isPasswordValid = ref(true);
 const isServiceTypeValid = ref(true);
 const isServiceDescriptionValid = ref(true);
 const isExperienceValid = ref(true);
+const isPincodeValid = ref(true);
 
 const isNameTouched = ref(false);
-const isUsernameTouched = ref(false);
 const isEmailTouched = ref(false);
 const isPasswordTouched = ref(false);
 const isServiceTypeTouched = ref(false);
 const isServiceDescriptionTouched = ref(false);
 const isExperienceTouched = ref(false);
-
+const isPincodeTouched = ref(false);
 watch(
     () => userData.name,
     (name) => {
@@ -59,16 +64,6 @@ watch(
             isNameTouched.value = true;
         }
         isNameValid.value = name.trim().length > 0;
-    }
-);
-
-watch(
-    () => userData.username,
-    (username) => {
-        if (!isUsernameTouched.value && username) {
-            isUsernameTouched.value = true;
-        }
-        isUsernameValid.value = username.trim().length > 0;
     }
 );
 
@@ -93,12 +88,12 @@ watch(
 );
 
 watch(
-    () => userData.serviceType,
-    (serviceType) => {
-        if (!isServiceTypeTouched.value && serviceType) {
+    () => userData.serviceId,
+    (serviceId) => {
+        if (!isServiceTypeTouched.value && serviceId) {
             isServiceTypeTouched.value = true;
         }
-        isServiceTypeValid.value = serviceType.length !== 0;
+        isServiceTypeValid.value = serviceId !== "";
     }
 );
 
@@ -108,7 +103,7 @@ watch(
         if (!isServiceDescriptionTouched.value && serviceDescription) {
             isServiceDescriptionTouched.value = true;
         }
-        isServiceDescriptionValid.value = serviceDescription.trim().length > 0;
+        isServiceDescriptionValid.value = serviceDescription.trim().length > 10;
     }
 );
 
@@ -122,78 +117,81 @@ watch(
     }
 );
 
+watch(
+    () => userData.pincodes,
+    (pincodes) => {
+        if (!isPincodeTouched.value && pincodes) {
+            isPincodeTouched.value = true;
+        }
+        isPincodeValid.value = /^[0-9,]+$/.test(pincodes);
+    }
+);
+
 const isFormInvalid = computed(() => {
     if (userData.userType === "customer") {
         return !(
             isNameValid.value &&
-            isUsernameValid.value &&
             isEmailValid.value &&
             isPasswordValid.value &&
             userData.name &&
-            userData.username &&
             userData.email &&
             userData.password
         );
     } else {
         return !(
             isNameValid.value &&
-            isUsernameValid.value &&
             isEmailValid.value &&
             isPasswordValid.value &&
             isServiceTypeValid.value &&
             isServiceDescriptionValid.value &&
             isExperienceValid.value &&
             userData.name &&
-            userData.username &&
             userData.email &&
             userData.password &&
-            userData.serviceType &&
+            userData.serviceId &&
             userData.serviceDescription &&
-            userData.experience
+            userData.experience &&
+            userData.pincodes
         );
     }
 });
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
     if (isFormInvalid.value) {
         return;
     }
 
-    toast.success("Registration successful!");
-    console.log(userData.name);
-    console.log(userData.username);
-    console.log(userData.email);
-    console.log(userData.password);
-    console.log(userData.serviceType);
-    console.log(userData.serviceDescription);
-    console.log(userData.experience);
-    resetForm();
-};
-
-const resetForm = () => {
-    userData.name = "";
-    userData.username = "";
-    userData.email = "";
-    userData.password = "";
-    userData.serviceType = "";
-    userData.serviceDescription = "";
-    userData.experience = "";
-
-    isNameValid.value = true;
-    isUsernameValid.value = true;
-    isEmailValid.value = true;
-    isPasswordValid.value = true;
-    isServiceTypeValid.value = true;
-    isServiceDescriptionValid.value = true;
-    isExperienceValid.value = true;
-
-    isNameTouched.value = false;
-    isUsernameTouched.value = false;
-    isEmailTouched.value = false;
-    isPasswordTouched.value = false;
-    isServiceTypeTouched.value = false;
-    isServiceDescriptionTouched.value = false;
-    isExperienceTouched.value = false;
+    if (userData.userType === "customer") {
+        try {
+            const response = await axios.post("/customer/register", {
+                name: userData.name,
+                email: userData.email,
+                password: userData.password,
+            });
+            toast.success(response.data.message);
+            router.push({ name: "login" });
+        } catch (error) {
+            console.error(error);
+            toast.error(error.response.data.message);
+        }
+    } else {
+        try {
+            const response = await axios.post("/professional/register", {
+                name: userData.name,
+                email: userData.email,
+                password: userData.password,
+                serviceId: userData.serviceId,
+                description: userData.serviceDescription,
+                experience: userData.experience,
+                pincodes: userData.pincodes,
+            });
+            toast.success(response.data.message);
+            router.push({ name: "login" });
+        } catch (error) {
+            console.error(error);
+            toast.error("Error registering");
+        }
+    }
 };
 </script>
 
@@ -211,7 +209,7 @@ const resetForm = () => {
                         :class="[
                             userData.userType === type.value
                                 ? 'btn-secondary'
-                                : 'btn-light',
+                                : '',
                             type.value === 'customer'
                                 ? 'rounded-start-pill'
                                 : 'rounded-end-pill',
@@ -244,26 +242,6 @@ const resetForm = () => {
                                     v-if="isNameTouched && !isNameValid"
                                     style="color: red"
                                     >Please enter valid name</small
-                                >
-                            </div>
-                            <div class="form-group mb-3">
-                                <label class="form-label">Username</label>
-                                <input
-                                    v-model="userData.username"
-                                    type="text"
-                                    class="form-control"
-                                    :class="{
-                                        'is-invalid':
-                                            isUsernameTouched &&
-                                            !isUsernameValid,
-                                    }"
-                                    placeholder="johndoe"
-                                    required
-                                />
-                                <small
-                                    v-if="isUsernameTouched && !isUsernameValid"
-                                    style="color: red"
-                                    >Please enter valid username</small
                                 >
                             </div>
                             <div class="form-group mb-3">
@@ -315,7 +293,7 @@ const resetForm = () => {
                                         >Service Type</label
                                     >
                                     <select
-                                        v-model="userData.serviceType"
+                                        v-model="userData.serviceId"
                                         id="serviceType"
                                         class="form-select"
                                         :class="{
@@ -326,10 +304,15 @@ const resetForm = () => {
                                         required
                                     >
                                         <option disabled value="">
-                                            Choose...
+                                            Select Service
                                         </option>
-                                        <option value="1">Option 1</option>
-                                        <option value="2">Option 2</option>
+                                        <option
+                                            v-for="(service, index) in services"
+                                            :key="index"
+                                            :value="service.id"
+                                        >
+                                        {{ service.name }} - ${{ service.base_price }} ({{ service.time_required }} mins)
+                                        </option>
                                     </select>
                                     <small
                                         v-if="
@@ -362,7 +345,8 @@ const resetForm = () => {
                                             !isServiceDescriptionValid
                                         "
                                         style="color: red"
-                                        >Please enter service description</small
+                                        >Please enter service description at
+                                        least 10 characters long</small
                                     >
                                 </div>
                                 <div class="form-group mb-3">
@@ -389,6 +373,31 @@ const resetForm = () => {
                                         style="color: red"
                                         >Please enter valid experience
                                         (1-100)</small
+                                    >
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="form-label"
+                                        >Service Pincodes</label
+                                    >
+                                    <input
+                                        v-model="userData.pincodes"
+                                        type="text"
+                                        class="form-control"
+                                        :class="{
+                                            'is-invalid':
+                                                isPincodeTouched &&
+                                                !isPincodeValid,
+                                        }"
+                                        placeholder="123456, 123457, 123458, ..."
+                                        required
+                                    />
+                                    <small
+                                        v-if="
+                                            isExperienceTouched &&
+                                            !isExperienceValid
+                                        "
+                                        style="color: red"
+                                        >Please enter valid pincodes</small
                                     >
                                 </div>
                             </div>

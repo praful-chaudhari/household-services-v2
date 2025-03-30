@@ -1,3 +1,7 @@
+from flask import current_app as app
+from flask_caching import Cache
+import sqlite3
+
 class Config():
   DEBUG = False
   SQLALCHEMY_TRACK_MODIFICATIONS = True
@@ -15,3 +19,10 @@ class LocalDevelopmentConfig(Config):
 
   # configuration for authentication
   SECURITY_TOKEN_AUTHENTICATION_HEADER = "Authentication-Token"
+  # configuration for caching
+  CACHE_TYPE = "RedisCache"
+  CACHE_REDIS_HOST = "localhost"
+  CACHE_REDIS_PORT = 6379
+  # CACHE_REDIS_DB = 0
+  CACHE_DEFAULT_TIMEOUT = 300
+

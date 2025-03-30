@@ -3,7 +3,7 @@ import { watch, ref, computed } from "vue";
 import { useToast } from "vue-toastification";
 import axios from "@/utils/axios.js";
 import { useRouter } from "vue-router";
-import { userStore } from "../stores/userStore.js";
+import { userStore } from "@/stores/userStore.js";
 
 const toast = useToast();
 const router = useRouter();
@@ -50,37 +50,31 @@ const handleSubmit = async () => {
                 email: email.value,
                 password: password.value,
             });
+            
             toast.success("Login successful!");
-            store.setAuthToken(response.data.token);
-            store.setUserRoles(response.data.roles);
-            localStorage.setItem("authToken", response.data.token);
-            localStorage.setItem("roles", JSON.stringify(response.data.roles));
-            resetForm();
-            router.push("/dashboard");
+            store.setUser(response.data);
+            
+            
+            if (store.isAdmin) {
+                router.push({ name: "AdminDashboard" });
+            } else if (store.isCustomer) {
+                router.push({ name: "CustomerDashboard" });
+            } else if (store.isProfessional) {
+                router.push({ name: "ProfessionalDashboard" });
+            }
         } catch (error) {
-            if (error.status === 404) {
+            if (error.response?.status === 404) {
                 isValidEmail.value = false;
                 isEmailTouched.value = true;
-            } else if (error.status === 401) {
+            } else if (error.response?.status === 401) {
                 isValidPassword.value = false;
                 isPasswordTouched.value = true;
                 passwordErrorMessage.value = error.response.data.message;
             }
             console.error(error);
-            toast.error(error.response.data.message);
+            toast.error(error.response?.data?.message || "Login failed");
         }
     }
-};
-
-const resetForm = () => {
-    email.value = "";
-    password.value = "";
-
-    isValidEmail.value = true;
-    isValidPassword.value = true;
-
-    isEmailTouched.value = false;
-    isPasswordTouched.value = false;
 };
 </script>
 

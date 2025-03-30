@@ -2,36 +2,29 @@ import { defineStore } from "pinia";
 
 export const userStore = defineStore("userStore", {
     state: () => ({
-        authToken: localStorage.getItem("authToken") || null,
-        roles: JSON.parse(localStorage.getItem("roles")) || [],
+        user: JSON.parse(localStorage.getItem("user")) || {},
     }),
 
     actions: {
-        setAuthToken(authToken) {
-            this.authToken = authToken;
+        setUser(user) {
+            this.user = user;
+            localStorage.setItem("user", JSON.stringify(user));
         },
-        clearAuthToken() {
-            this.authToken = null;
-            localStorage.removeItem("authToken");
-        },
-        setUserRoles(roles) {
-            this.roles = roles;
-        },
-        clearRoles() {
-            this.roles = [];
+        clearUser() {
+            localStorage.removeItem("user");
+            this.user = {};
         },
         logout() {
-            this.clearAuthToken();
-            this.clearRoles();
+            this.clearUser();
         },
     },
 
     getters: {
-        isAuthenticated: (state) => !!state.authToken,
-        getAuthToken: (state) => state.authToken,
-        getRoles: (state) => state.roles,
-        isAdmin: (state) => state.roles.includes("admin"),
-        isCustomer: (state) => state.roles.includes("customer"),
-        isProfessional: (state) => state.roles.includes("professional"),
+        isAuthenticated: (state) => !!state.user.authToken,
+        getAuthToken: (state) => state.user.authToken,
+        getRoles: (state) => state.user.roles,
+        isAdmin: (state) => state.user.roles?.includes("admin") || false,
+        isCustomer: (state) => state.user.roles?.includes("customer") || false,
+        isProfessional: (state) => state.user.roles?.includes("professional") || false,
     },
 });

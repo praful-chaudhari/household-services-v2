@@ -1,0 +1,796 @@
+openapi: 3.0.0
+info:
+    title: Household Services API
+    version: 1.0.0
+    description: API for managing users, professionals, services, service requests, and reviews
+
+servers:
+    - url: http://localhost:5000
+
+components:
+    securitySchemes:
+        bearerAuth:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
+
+    schemas:
+        User:
+            type: object
+            properties:
+                id:
+                    type: integer
+                name:
+                    type: string
+                email:
+                    type: string
+                active:
+                    type: boolean
+                roles:
+                    type: array
+                    items:
+                        type: string
+                timestamp:
+                    type: string
+                    format: date-time
+
+        LoginResponse:
+            type: object
+            properties:
+                id:
+                    type: integer
+                name:
+                    type: string
+                email:
+                    type: string
+                active:
+                    type: boolean
+                roles:
+                    type: array
+                    items:
+                        type: string
+                authToken:
+                    type: string
+
+        ProfessionalProfile:
+            type: object
+            properties:
+                id:
+                    type: integer
+                name:
+                    type: string
+                email:
+                    type: string
+                active:
+                    type: boolean
+                service:
+                    $ref: "#/components/schemas/Service"
+                description:
+                    type: string
+                date_created:
+                    type: string
+                    format: date-time
+                experience:
+                    type: number
+                service_pincodes:
+                    type: string
+                status:
+                    type: string
+                    enum: [pending, approved, rejected]
+                rating:
+                    type: number
+                timestamp:
+                    type: string
+                    format: date-time
+
+        Service:
+            type: object
+            properties:
+                id:
+                    type: integer
+                name:
+                    type: string
+                base_price:
+                    type: number
+                time_required:
+                    type: integer
+                description:
+                    type: string
+
+        ServiceRequest:
+            type: object
+            properties:
+                id:
+                    type: integer
+                service:
+                    $ref: "#/components/schemas/Service"
+                customer:
+                    $ref: "#/components/schemas/User"
+                professional:
+                    $ref: "#/components/schemas/ProfessionalProfile"
+                status:
+                    type: string
+                    enum: [requested, accepted, completed, rejected, closed]
+                date_of_request:
+                    type: string
+                    format: date-time
+                date_of_completion:
+                    type: string
+                    format: date-time
+                address:
+                    type: string
+                remarks:
+                    type: string
+                customer_contact_number:
+                    type: string
+                review:
+                    $ref: "#/components/schemas/Review"
+
+        Review:
+            type: object
+            properties:
+                id:
+                    type: integer
+                service_request_id:
+                    type: integer
+                customer_id:
+                    type: integer
+                professional_id:
+                    type: integer
+                rating:
+                    type: string
+                    enum: ["1", "2", "3", "4", "5"]
+                review:
+                    type: string
+                timestamp:
+                    type: string
+                    format: date-time
+
+paths:
+    /login:
+        post:
+            summary: Authenticate user
+            description: Login and get authentication token
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                email:
+                                    type: string
+                                password:
+                                    type: string
+                            required:
+                                - email
+                                - password
+            responses:
+                "200":
+                    description: Login successful
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/LoginResponse"
+                "401":
+                    description: Invalid credentials
+                "404":
+                    description: User not found
+
+    /customers:
+        get:
+            summary: Get all customers
+            security:
+                - bearerAuth: []
+            responses:
+                "200":
+                    description: List of customers
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/User"
+                "404":
+                    description: No customers found
+
+    /customers/{id}:
+        get:
+            summary: Get customer by ID
+            security:
+                - bearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                "200":
+                    description: Customer details
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/User"
+                "404":
+                    description: Customer not found
+
+        patch:
+            summary: Update customer
+            security:
+                - bearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                name:
+                                    type: string
+                                email:
+                                    type: string
+                                active:
+                                    type: boolean
+            responses:
+                "200":
+                    description: Customer updated successfully
+                "404":
+                    description: Customer not found
+                "409":
+                    description: Email already exists
+
+        delete:
+            summary: Delete customer
+            security:
+                - bearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                "200":
+                    description: Customer deleted successfully
+                "404":
+                    description: Customer not found
+                "500":
+                    description: Error occurred while deleting
+
+    /customer/register:
+        post:
+            summary: Register a new customer
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                name:
+                                    type: string
+                                email:
+                                    type: string
+                                password:
+                                    type: string
+                            required:
+                                - name
+                                - email
+                                - password
+            responses:
+                "201":
+                    description: Registration successful
+                "409":
+                    description: Email already exists
+                "500":
+                    description: Error occurred while registering
+
+    /professionals:
+        get:
+            summary: Get all professionals
+            security:
+                - bearerAuth: []
+            responses:
+                "200":
+                    description: List of professionals
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/ProfessionalProfile"
+
+    /professionals/{id}:
+        get:
+            summary: Get professional by ID
+            security:
+                - bearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                "200":
+                    description: Professional details
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ProfessionalProfile"
+                "404":
+                    description: Professional not found
+
+        patch:
+            summary: Update professional
+            security:
+                - bearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                experience:
+                                    type: integer
+                                description:
+                                    type: string
+                                status:
+                                    type: string
+                                    enum: [pending, approved, rejected]
+                                active:
+                                    type: boolean
+            responses:
+                "200":
+                    description: Professional updated successfully
+                "404":
+                    description: Professional not found
+                "500":
+                    description: Error occurred while updating
+
+        delete:
+            summary: Delete professional
+            security:
+                - bearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                "200":
+                    description: Professional deleted successfully
+                "404":
+                    description: Professional not found
+                "500":
+                    description: Error occurred while deleting
+
+    /professional/register:
+        post:
+            summary: Register a new professional
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                name:
+                                    type: string
+                                email:
+                                    type: string
+                                password:
+                                    type: string
+                                serviceId:
+                                    type: integer
+                                experience:
+                                    type: integer
+                                description:
+                                    type: string
+                                pincodes:
+                                    type: string
+                            required:
+                                - name
+                                - email
+                                - password
+                                - serviceId
+                                - experience
+                                - description
+                                - pincodes
+            responses:
+                "201":
+                    description: Registration successful
+                "409":
+                    description: Email already exists
+                "500":
+                    description: Error occurred while registering
+
+    /profile/{id}:
+        patch:
+            summary: Update user profile
+            security:
+                - bearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                name:
+                                    type: string
+                                oldPassword:
+                                    type: string
+                                newPassword:
+                                    type: string
+                                service_id:
+                                    type: integer
+                                description:
+                                    type: string
+            responses:
+                "200":
+                    description: Profile updated successfully
+                "401":
+                    description: Invalid old password
+                "403":
+                    description: Not authorized to update this profile
+                "404":
+                    description: User not found
+                "500":
+                    description: Error occurred while updating
+
+    /services:
+        get:
+            summary: Get all services
+            responses:
+                "200":
+                    description: List of services
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/Service"
+
+        post:
+            summary: Add a new service
+            security:
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                name:
+                                    type: string
+                                basePrice:
+                                    type: number
+                                timeRequired:
+                                    type: integer
+                                description:
+                                    type: string
+                            required:
+                                - name
+                                - basePrice
+                                - timeRequired
+            responses:
+                "201":
+                    description: Service added successfully
+                "500":
+                    description: Error occurred while adding service
+
+    /services/{id}:
+        get:
+            summary: Get service by ID
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                "200":
+                    description: Service details
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Service"
+                "404":
+                    description: Service not found
+
+        patch:
+            summary: Update service
+            security:
+                - bearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                name:
+                                    type: string
+                                basePrice:
+                                    type: number
+                                timeRequired:
+                                    type: integer
+                                description:
+                                    type: string
+            responses:
+                "200":
+                    description: Service edited successfully
+                "404":
+                    description: Service not found
+                "500":
+                    description: Error occurred while updating service
+
+        delete:
+            summary: Delete service
+            security:
+                - bearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                "200":
+                    description: Service deleted successfully
+                "404":
+                    description: Service not found
+                "500":
+                    description: Error occurred while deleting service
+
+    /service-requests:
+        get:
+            summary: Get all service requests
+            security:
+                - bearerAuth: []
+            responses:
+                "200":
+                    description: List of service requests
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/ServiceRequest"
+                "403":
+                    description: Unauthorized
+
+        post:
+            summary: Create a new service request
+            security:
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                service_id:
+                                    type: integer
+                                professional_id:
+                                    type: integer
+                                address:
+                                    type: string
+                                remarks:
+                                    type: string
+                                customer_contact_number:
+                                    type: string
+                            required:
+                                - service_id
+                                - professional_id
+                                - address
+                                - customer_contact_number
+            responses:
+                "201":
+                    description: Service request added successfully
+                "500":
+                    description: Error occurred while adding service request
+
+    /service-requests/{id}:
+        get:
+            summary: Get service request by ID
+            security:
+                - bearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                "200":
+                    description: Service request details
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ServiceRequest"
+                "403":
+                    description: Unauthorized
+                "404":
+                    description: Service request not found
+
+        patch:
+            summary: Update service request status
+            security:
+                - bearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                status:
+                                    type: string
+                                    enum:
+                                        [
+                                            requested,
+                                            accepted,
+                                            completed,
+                                            rejected,
+                                            closed,
+                                        ]
+                            required:
+                                - status
+            responses:
+                "200":
+                    description: Service request status updated successfully
+                "403":
+                    description: Unauthorized
+                "404":
+                    description: Service request not found
+                "500":
+                    description: Error occurred while updating service request status
+
+    /reviews:
+        get:
+            summary: Get all reviews
+            security:
+                - bearerAuth: []
+            responses:
+                "200":
+                    description: List of reviews
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/Review"
+                "403":
+                    description: Unauthorized
+
+    /reviews/{id}:
+        get:
+            summary: Get reviews by user ID
+            security:
+                - bearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                "200":
+                    description: List of reviews
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/Review"
+                "403":
+                    description: Unauthorized
+
+        post:
+            summary: Add a review for a service request
+            security:
+                - bearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                rating:
+                                    type: string
+                                    enum: ["1", "2", "3", "4", "5"]
+                                comment:
+                                    type: string
+                            required:
+                                - rating
+                                - comment
+            responses:
+                "201":
+                    description: Review added successfully
+                "404":
+                    description: Service request not found
+                "500":
+                    description: Error occurred while adding review
+
+    /api/export:
+        get:
+            summary: Trigger CSV export job
+            description: Manually triggers a job to export data to CSV
+            security:
+                - bearerAuth: []
+            responses:
+                "200":
+                    description: Job triggered successfully
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    id:
+                                        type: string
+                                        description: Task ID of the export job
+                                    result:
+                                        type: string
+                                        description: Result of the export job
+
+    /api/csv_result/{task_id}:
+        get:
+            summary: Get CSV export result
+            description: Retrieve the result of a CSV export job
+            security:
+                - bearerAuth: []
+            parameters:
+                - name: task_id
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+                      description: Task ID of the export job
+            responses:
+                "200":
+                    description: CSV file
+                    content:
+                        text/csv:
+                            schema:
+                                type: string
+                                format: binary
